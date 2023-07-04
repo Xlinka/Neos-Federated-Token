@@ -66,4 +66,8 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
         super.transferFrom(sender, recipient, amount);
         return true;
     }
+
+    function burn(uint256 amount) public {
+    _burn(msg.sender, amount);
+    } // GOODBYE TOKENS
 }
