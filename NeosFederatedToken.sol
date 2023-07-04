@@ -16,9 +16,11 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
     mapping(address => StakingInfo) public stakes;
     uint256 public stakingPeriod = 30 days;
     uint256 public rewardRate = 10;  // Reward rate in percentage
+    uint256 public maxTransferAmount; // max transfer ammount per transaction 1% should add a function to dynamically change this once deployed.
 
     constructor(uint256 initialSupply) ERC20("Neos Federated Token", "NFT") {
         _mint(msg.sender, initialSupply);
+        maxTransferAmount = totalSupply().div(100); // 1% of total supply
     }
 
     function stakeTokens(uint256 _amount) public nonReentrant {
@@ -49,30 +51,19 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
-        require(msg.sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
-        require(balanceOf(msg.sender) >= amount, "ERC20: transfer amount exceeds balance");
-
-        _transfer(msg.sender, recipient, amount);
+        require(amount <= maxTransferAmount, "Transfer amount exceeds the max transfer limit."); // Added condition
+        super.transfer(recipient, amount);
         return true;
     }
 
     function approve(address spender, uint256 amount) public override returns (bool) {
-        require(msg.sender != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
-
         _approve(msg.sender, spender, amount);
         return true;
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
-        require(amount <= balanceOf(sender), "ERC20: transfer amount exceeds balance");
-        require(amount <= allowance(sender, msg.sender), "ERC20: transfer amount exceeds allowance");
-
-        _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, allowance(sender, msg.sender).sub(amount));
+        require(amount <= maxTransferAmount, "Transfer amount exceeds the max transfer limit."); // Added condition
+        super.transferFrom(sender, recipient, amount);
         return true;
     }
 }
