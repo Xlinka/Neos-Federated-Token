@@ -11,12 +11,14 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
     struct StakingInfo {
         uint256 amount;
         uint256 lastStakedTime;
+        uint256 lastClaimedTime;
+        uint256 reward;
     }
 
     mapping(address => StakingInfo) public stakes;
     uint256 public stakingPeriod = 30 days;
     uint256 public rewardRate = 10;  // Reward rate in percentage
-    uint256 public maxTransferAmount; // max transfer ammount per transaction 1% should add a function to dynamically change this once deployed.
+    uint256 public maxTransferAmount; // max transfer amount per transaction 1% should add a function to dynamically change this once deployed.
 
     constructor(uint256 initialSupply) ERC20("Neos Federated Token", "NFT") {
         _mint(msg.sender, initialSupply);
@@ -27,19 +29,24 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
         require(stakes[msg.sender].amount == 0, "Already staked. Unstake first.");
 
         _burn(msg.sender, _amount);
-        stakes[msg.sender].amount = stakes[msg.sender].amount.add(_amount);
-        stakes[msg.sender].lastStakedTime = block.timestamp;
+        stakes[msg.sender] = StakingInfo({
+            amount: _amount,
+            lastStakedTime: block.timestamp,
+            lastClaimedTime: block.timestamp,
+            reward: 0
+        });
     }
 
-    function unstakeTokens() public nonReentrant {
+    function claimTokens() public nonReentrant {
         StakingInfo storage staker = stakes[msg.sender];
-        require(block.timestamp >= staker.lastStakedTime.add(stakingPeriod), "Staking period not yet completed.");
 
-        uint256 reward = calculateReward(staker.amount, staker.lastStakedTime, rewardRate);
-        uint256 payout = staker.amount.add(reward);
-
-        staker.amount = 0;
-        staker.lastStakedTime = 0;
+        uint256 pendingReward = calculateReward(staker.amount, staker.lastClaimedTime, rewardRate);
+        uint256 payout = pendingReward;
+        
+        require(payout > 0, "No rewards available.");
+        
+        staker.reward = staker.reward.add(pendingReward);
+        staker.lastClaimedTime = block.timestamp;
 
         _mint(msg.sender, payout);
     }
@@ -68,6 +75,6 @@ contract NeosFederatedToken is ERC20, ReentrancyGuard {
     }
 
     function burn(uint256 amount) public {
-    _burn(msg.sender, amount);
-    } // GOODBYE TOKENS
+        _burn(msg.sender, amount);
+    }
 }
